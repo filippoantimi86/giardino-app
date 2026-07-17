@@ -123,7 +123,7 @@
   header.top {
     background: var(--forest);
     color: white;
-    padding: 18px 20px 16px;
+    padding: calc(18px + env(safe-area-inset-top)) 20px 16px;
     position: sticky;
     top: 0;
     z-index: 10;
@@ -267,6 +267,15 @@
     box-shadow: 0 1px 3px rgba(31,58,46,0.05);
   }
   .task-item:hover { border-left: 3px solid var(--forest-light); padding-left: 13px; }
+  .task-item .task-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--stone-dark);
+    flex-shrink: 0;
+  }
+  .task-item .task-main { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
   .task-item .plant-name { font-weight: 600; color: var(--ink); font-size: 0.92rem; }
   .task-item .task-note { font-size: 0.78rem; color: #8a8a80; margin-top: 2px; }
   .task-item .chevron { color: #c4c0b4; }
@@ -274,8 +283,8 @@
   /* ---- Bottone flottante nuova pianta ---- */
   .fab {
     position: fixed;
-    bottom: 22px;
-    right: 22px;
+    bottom: calc(22px + env(safe-area-inset-bottom));
+    right: calc(22px + env(safe-area-inset-right));
     width: 56px;
     height: 56px;
     border-radius: 50%;
@@ -324,7 +333,7 @@
   .form-header {
     background: var(--forest);
     color: white;
-    padding: 16px 20px;
+    padding: calc(16px + env(safe-area-inset-top)) 20px 16px;
     display: flex;
     align-items: center;
     gap: 14px;
@@ -582,7 +591,7 @@
   .detail-header {
     background: var(--forest);
     color: white;
-    padding: 16px 20px;
+    padding: calc(16px + env(safe-area-inset-top)) 20px 16px;
     display: flex;
     align-items: center;
     gap: 14px;
@@ -1574,11 +1583,15 @@
       const items = gruppi[tipo].map(c => {
         const pianta = tuttePiante.find(p => p.id === c.id_pianta);
         const nomePianta = pianta ? pianta.nome_comune : `Pianta #${c.id_pianta}`;
+        const fotoSrc = pianta ? getFotoSrc(pianta.foto_url) : null;
         return `
           <div class="task-item" onclick="apriDettaglio(${c.id_pianta})">
-            <div>
-              <div class="plant-name">${escapeHtml(nomePianta)}</div>
-              ${c.note ? `<div class="task-note">${escapeHtml(c.note)}</div>` : ''}
+            <div class="task-main">
+              ${fotoSrc ? `<img class="task-thumb" src="${fotoSrc}" loading="lazy" onerror="this.style.display='none'">` : ''}
+              <div>
+                <div class="plant-name">${escapeHtml(nomePianta)}</div>
+                ${c.note ? `<div class="task-note">${escapeHtml(c.note)}</div>` : ''}
+              </div>
             </div>
             <span class="chevron">→</span>
           </div>
