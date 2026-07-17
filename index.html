@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Giardino</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f3a2e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Giardino">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --forest: #1f3a2e;
+    --forest-light: #2f4f3e;
+    --sage: #8ba394;
+    --stone: #f2efe9;
+    --stone-dark: #e6e1d6;
+    --ink: #1c1c1a;
+    --gold: #b8922f;
+    --clay-warn: #a14c3a;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--stone);
+    color: var(--ink);
+    -webkit-tap-highlight-color: transparent;
+  }
+  h1, h2, h3, .display {
+    font-family: 'Fraunces', serif;
+    letter-spacing: -0.01em;
+  }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ---- Layout shells ---- */
+  #login-screen, #app-screen { display: none; min-height: 100vh; }
+  #login-screen.active, #app-screen.active { display: block; }
+
+  #login-screen.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .login-box {
+    background: white;
+    border-radius: var(--radius);
+    padding: 32px 28px;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 2px 20px rgba(31,58,46,0.08);
+  }
+  .login-box h1 {
+    font-size: 1.6rem;
+    color: var(--forest);
+    margin: 0 0 4px;
+    font-weight: 600;
+  }
+  .login-box p.sub {
+    color: #6b6b64;
+    font-size: 0.9rem;
+    margin: 0 0 24px;
+  }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #8a8a80;
+    margin-bottom: 5px;
+  }
+  input[type=text], input[type=email], input[type=password], select {
+    width: 100%;
+    padding: 11px 13px;
+    border: 1.5px solid var(--stone-dark);
+    border-radius: 7px;
+    font-size: 0.95rem;
+    background: white;
+    font-family: inherit;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--forest-light);
+  }
+  button {
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary {
+    width: 100%;
+    padding: 13px;
+    background: var(--forest);
+    color: white;
+    border-radius: 7px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin-top: 6px;
+  }
+  .btn-primary:hover { background: var(--forest-light); }
+  .btn-primary:disabled { background: #b7b7ac; cursor: not-allowed; }
+  .msg {
+    font-size: 0.85rem;
+    padding: 9px 12px;
+    border-radius: 6px;
+    margin-top: 12px;
+  }
+  .msg.err { background: #fbeae6; color: var(--clay-warn); }
+  .msg.ok { background: #e8f0e9; color: var(--forest-light); }
+
+  /* ---- App header ---- */
+  header.top {
+    background: var(--forest);
+    color: white;
+    padding: 18px 20px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header.top .title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  header.top h1 {
+    font-size: 1.3rem;
+    margin: 0;
+    font-weight: 600;
+  }
+  header.top .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--sage);
+  }
+  .search-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .search-row input[type=text] {
+    flex: 1;
+    background: rgba(255,255,255,0.1);
+    border: 1.5px solid rgba(255,255,255,0.18);
+    color: white;
+  }
+  .search-row input[type=text]::placeholder { color: rgba(255,255,255,0.5); }
+  .search-row input[type=text]:focus { border-color: var(--gold); }
+
+  .filters {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .filters select {
+    background: rgba(255,255,255,0.1);
+    border: 1.5px solid rgba(255,255,255,0.18);
+    color: white;
+    font-size: 0.82rem;
+    padding: 7px 10px;
+    width: auto;
+    min-width: 130px;
+  }
+  .filters select option { color: var(--ink); }
+
+  /* ---- Tab nav ---- */
+  .tab-nav {
+    display: flex;
+    gap: 4px;
+    margin-top: 14px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .tab-btn {
+    flex: 1;
+    background: transparent;
+    color: rgba(255,255,255,0.65);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 0.84rem;
+    font-weight: 500;
+  }
+  .tab-btn.active {
+    background: white;
+    color: var(--forest);
+  }
+
+  /* ---- Vista mensile ---- */
+  #plants-view, #tasks-view { display: none; }
+  #plants-view.active, #tasks-view.active { display: block; }
+
+  .month-switcher {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 6px 0 18px;
+  }
+  .month-switcher button {
+    background: white;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    color: var(--forest);
+    font-size: 1rem;
+    box-shadow: 0 1px 3px rgba(31,58,46,0.1);
+  }
+  .month-switcher .month-label {
+    font-family: 'Fraunces', serif;
+    font-size: 1.25rem;
+    color: var(--forest);
+    min-width: 140px;
+    text-align: center;
+  }
+  .month-switcher .month-label.current-tag::after {
+    content: '· oggi';
+    font-family: 'Inter', sans-serif;
+    font-size: 0.7rem;
+    color: var(--gold);
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  .task-group {
+    margin-bottom: 18px;
+  }
+  .task-group-title {
+    font-family: 'Fraunces', serif;
+    font-size: 1.02rem;
+    color: var(--forest);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .task-group-title .n {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    background: var(--stone-dark);
+    color: #6b6b64;
+    padding: 2px 7px;
+    border-radius: 10px;
+  }
+  .task-item {
+    background: white;
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 1px 3px rgba(31,58,46,0.05);
+  }
+  .task-item:hover { border-left: 3px solid var(--forest-light); padding-left: 13px; }
+  .task-item .plant-name { font-weight: 600; color: var(--ink); font-size: 0.92rem; }
+  .task-item .task-note { font-size: 0.78rem; color: #8a8a80; margin-top: 2px; }
+  .task-item .chevron { color: #c4c0b4; }
+
+  /* ---- Bottone flottante nuova pianta ---- */
+  .fab {
+    position: fixed;
+    bottom: 22px;
+    right: 22px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--forest);
+    color: white;
+    font-size: 1.6rem;
+    box-shadow: 0 3px 12px rgba(31,58,46,0.35);
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .fab:hover { background: var(--forest-light); }
+
+  .edit-btn {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    padding: 7px 14px;
+    border-radius: 7px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-left: auto;
+  }
+  .edit-btn:hover { background: rgba(255,255,255,0.25); }
+
+  .delete-btn {
+    background: rgba(161,76,58,0.25);
+    color: #f3c9bf;
+    padding: 7px 14px;
+    border-radius: 7px;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  .delete-btn:hover { background: rgba(161,76,58,0.4); color: white; }
+
+  /* ---- Form screen ---- */
+  #form-screen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--stone);
+    z-index: 25;
+    overflow-y: auto;
+  }
+  #form-screen.active { display: block; }
+  .form-header {
+    background: var(--forest);
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+  }
+  .form-header span { font-weight: 500; flex: 1; }
+  .save-btn {
+    background: var(--gold);
+    color: var(--forest);
+    padding: 9px 18px;
+    border-radius: 7px;
+    font-weight: 600;
+    font-size: 0.88rem;
+  }
+  .save-btn:disabled { background: #b7b7ac; color: white; cursor: not-allowed; }
+  .form-body { padding: 20px; max-width: 640px; margin: 0 auto; }
+  .form-body textarea {
+    width: 100%;
+    padding: 11px 13px;
+    border: 1.5px solid var(--stone-dark);
+    border-radius: 7px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 70px;
+  }
+  .form-body textarea:focus { outline: none; border-color: var(--forest-light); }
+  .form-section {
+    font-family: 'Fraunces', serif;
+    font-size: 1rem;
+    color: var(--forest);
+    margin: 22px 0 10px;
+  }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 480px) {
+    .form-row { grid-template-columns: 1fr; }
+  }
+  .required-mark { color: var(--clay-warn); }
+  .form-msg {
+    font-size: 0.85rem;
+    padding: 10px 13px;
+    border-radius: 6px;
+    margin-top: 14px;
+    display: none;
+  }
+  .form-msg.err { background: #fbeae6; color: var(--clay-warn); display: block; }
+  .form-msg.ok { background: #e8f0e9; color: var(--forest-light); display: block; }
+
+  /* ---- Righe azione di cura nel form ---- */
+  .cura-row {
+    background: white;
+    border-radius: var(--radius);
+    padding: 14px 16px 16px;
+    margin-bottom: 12px;
+    border: 1px solid var(--stone-dark);
+  }
+  .cura-row-top {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .cura-row-top .field { flex: 1; margin-bottom: 0; }
+  .remove-cura-btn {
+    background: transparent;
+    color: var(--clay-warn);
+    font-size: 0.78rem;
+    padding: 11px 4px 0;
+    flex-shrink: 0;
+  }
+  .mesi-select-row {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .mese-toggle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    padding: 6px 4px;
+    width: 40px;
+    text-align: center;
+    border-radius: 6px;
+    background: var(--stone);
+    color: #6b6b64;
+    border: 1.5px solid transparent;
+  }
+  .mese-toggle.selected {
+    background: var(--forest);
+    color: white;
+  }
+  .cura-row textarea {
+    margin-top: 10px;
+    min-height: 50px;
+  }
+  .add-cura-btn {
+    background: white;
+    border: 1.5px dashed var(--sage);
+    color: var(--forest-light);
+    width: 100%;
+    padding: 11px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 500;
+  }
+  .add-cura-btn:hover { background: var(--stone-dark); }
+
+  /* ---- Foto ---- */
+  .card-thumb {
+    width: 100%;
+    height: 130px;
+    object-fit: cover;
+    border-radius: 7px;
+    margin-bottom: 10px;
+    background: var(--stone-dark);
+    display: block;
+  }
+  .detail-photo {
+    width: 100%;
+    max-height: 320px;
+    object-fit: cover;
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    background: var(--stone-dark);
+    display: block;
+  }
+  .foto-preview-wrap { margin-bottom: 12px; }
+  .foto-preview-wrap img {
+    width: 100%;
+    max-width: 280px;
+    border-radius: var(--radius);
+    display: block;
+    margin-bottom: 8px;
+  }
+  input[type=file] {
+    width: 100%;
+    font-size: 0.85rem;
+    padding: 9px 0;
+  }
+  .foto-upload-status {
+    font-size: 0.82rem;
+    color: #8a8a80;
+    margin-top: 6px;
+  }
+
+  /* ---- Galleria foto ---- */
+  .galleria-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .galleria-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 7px;
+    overflow: hidden;
+    background: var(--stone-dark);
+  }
+  .galleria-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    cursor: pointer;
+  }
+  .galleria-item .remove-x {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.55);
+    color: white;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .galleria-empty {
+    font-size: 0.85rem;
+    color: #8a8a80;
+    margin-top: 8px;
+  }
+
+  /* ---- Plant list ---- */
+  main { padding: 16px; max-width: 720px; margin: 0 auto; }
+  .plant-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  .plant-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(31,58,46,0.06);
+    border: 1px solid transparent;
+    transition: border-color 0.12s, transform 0.12s;
+  }
+  .plant-card:hover {
+    border-color: var(--sage);
+    transform: translateY(-1px);
+  }
+  .plant-card .name {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--forest);
+  }
+  .plant-card .sci {
+    font-style: italic;
+    color: #7a7a70;
+    font-size: 0.85rem;
+    margin-top: 1px;
+  }
+  .plant-card .meta {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    font-size: 0.72rem;
+    padding: 3px 9px;
+    border-radius: 20px;
+    background: var(--stone-dark);
+    color: var(--forest-light);
+    font-weight: 500;
+  }
+  .badge.stato-viva { background: #e2ede2; color: #2f6b3e; }
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #8a8a80;
+  }
+
+  /* ---- Detail view ---- */
+  #detail-screen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--stone);
+    z-index: 20;
+    overflow-y: auto;
+  }
+  #detail-screen.active { display: block; }
+  .detail-header {
+    background: var(--forest);
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+  }
+  .back-btn {
+    background: rgba(255,255,255,0.12);
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .detail-body { padding: 20px; max-width: 640px; margin: 0 auto; }
+  .detail-name {
+    font-size: 1.6rem;
+    color: var(--forest);
+    margin: 0 0 2px;
+  }
+  .detail-sci {
+    font-style: italic;
+    color: #7a7a70;
+    margin-bottom: 16px;
+  }
+  .info-grid {
+    background: white;
+    border-radius: var(--radius);
+    padding: 4px 0;
+    margin-bottom: 20px;
+  }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--stone);
+    font-size: 0.9rem;
+    gap: 16px;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-row .k { color: #8a8a80; flex-shrink: 0; }
+  .info-row .v { text-align: right; }
+  .note-block {
+    background: white;
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .note-block .label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gold);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .section-title {
+    font-family: 'Fraunces', serif;
+    font-size: 1.1rem;
+    color: var(--forest);
+    margin: 24px 0 10px;
+  }
+  .cura-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .cura-card .tipo {
+    font-weight: 600;
+    color: var(--forest-light);
+    font-size: 0.95rem;
+  }
+  .mesi-chips {
+    display: flex;
+    gap: 5px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .mese-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    padding: 3px 7px;
+    border-radius: 5px;
+    background: var(--stone);
+    color: #8a8a80;
+  }
+  .mese-chip.now {
+    background: var(--forest);
+    color: white;
+  }
+  .cura-note {
+    font-size: 0.85rem;
+    color: #5a5a52;
+    margin-top: 8px;
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" class="active">
+  <div class="login-box">
+    <h1>🌿 Giardino</h1>
+    <p class="sub">Accedi per consultare le tue piante</p>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="login-email">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="login-password">
+    </div>
+    <button class="btn-primary" id="login-btn" onclick="doLogin()">Accedi</button>
+    <div id="login-msg" class="msg" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- APP: LISTA -->
+<div id="app-screen">
+  <header class="top">
+    <div class="title-row">
+      <h1>🌿 Giardino</h1>
+      <span class="count" id="plant-count">— piante</span>
+    </div>
+    <div class="search-row">
+      <input type="text" id="search-input" placeholder="Cerca per nome...">
+    </div>
+    <div class="filters">
+      <select id="filter-categoria"><option value="">Tutte le categorie</option></select>
+      <select id="filter-zona"><option value="">Tutte le zone</option></select>
+      <select id="filter-foto">
+        <option value="">Tutte le piante</option>
+        <option value="con">Con foto</option>
+        <option value="senza">Senza foto</option>
+      </select>
+    </div>
+    <div class="tab-nav">
+      <button class="tab-btn active" id="tab-plants" onclick="switchTab('plants')">Piante</button>
+      <button class="tab-btn" id="tab-tasks" onclick="switchTab('tasks')">Da fare questo mese</button>
+    </div>
+  </header>
+  <main>
+    <div id="plants-view" class="active">
+      <div id="plant-grid" class="plant-grid"></div>
+      <div id="empty-state" class="empty-state" style="display:none;">Nessuna pianta trovata con questi filtri.</div>
+    </div>
+    <div id="tasks-view">
+      <div class="month-switcher">
+        <button onclick="cambiaMese(-1)">←</button>
+        <span class="month-label" id="month-label"></span>
+        <button onclick="cambiaMese(1)">→</button>
+      </div>
+      <div class="filters" style="margin-bottom:14px;">
+        <select id="filter-tasks-azione" style="background:white; color:var(--ink); border-color:var(--stone-dark);">
+          <option value="">Tutte le azioni</option>
+        </select>
+      </div>
+      <div id="tasks-list"></div>
+      <div id="tasks-empty" class="empty-state" style="display:none;">Nessun intervento programmato per questo mese.</div>
+    </div>
+  </main>
+</div>
+
+<button class="fab" onclick="apriForm()">+</button>
+
+<!-- APP: DETTAGLIO -->
+<div id="detail-screen">
+  <div class="detail-header">
+    <button class="back-btn" onclick="closeDetail()">←</button>
+    <span>Dettaglio pianta</span>
+    <button class="edit-btn" id="edit-btn" onclick="apriFormModifica()">Modifica</button>
+    <button class="delete-btn" id="delete-btn" onclick="eliminaPiantaCorrente()">Elimina</button>
+  </div>
+  <div class="detail-body" id="detail-body"></div>
+</div>
+
+<!-- FORM: NUOVA / MODIFICA PIANTA -->
+<div id="form-screen">
+  <div class="form-header">
+    <button class="back-btn" onclick="chiudiForm()">←</button>
+    <span id="form-title">Nuova pianta</span>
+    <button class="save-btn" id="save-btn" onclick="salvaPianta()">Salva</button>
+  </div>
+  <div class="form-body">
+    <div class="field">
+      <label>Nome comune <span class="required-mark">*</span></label>
+      <input type="text" id="f-nome_comune">
+    </div>
+    <div class="field">
+      <label>Nome scientifico</label>
+      <input type="text" id="f-nome_scientifico">
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>Categoria</label>
+        <input type="text" id="f-categoria" list="list-categoria">
+        <datalist id="list-categoria"></datalist>
+      </div>
+      <div class="field">
+        <label>Tipo coltivazione</label>
+        <input type="text" id="f-tipo_coltivazione" list="list-coltivazione">
+        <datalist id="list-coltivazione"></datalist>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>Zona</label>
+        <input type="text" id="f-zona" list="list-zona">
+        <datalist id="list-zona"></datalist>
+      </div>
+      <div class="field">
+        <label>Stato</label>
+        <input type="text" id="f-stato" list="list-stato" value="Viva">
+        <datalist id="list-stato">
+          <option value="Viva"></option>
+          <option value="Morta"></option>
+        </datalist>
+      </div>
+    </div>
+
+    <div class="form-section">Azioni di cura</div>
+    <datalist id="list-tipo-intervento"></datalist>
+    <div id="cure-form-container"></div>
+    <button type="button" class="add-cura-btn" onclick="aggiungiCuraRow()">+ Aggiungi azione</button>
+
+    <div class="form-section">Note</div>
+    <div class="field">
+      <label>Note svernamento</label>
+      <textarea id="f-note_svernamento"></textarea>
+    </div>
+    <div class="field">
+      <label>Note generali</label>
+      <textarea id="f-note"></textarea>
+    </div>
+
+    <div class="form-section">Foto</div>
+    <div class="field">
+      <div class="foto-preview-wrap" id="foto-preview-wrap" style="display:none;">
+        <img id="foto-preview" src="">
+        <button type="button" class="remove-cura-btn" onclick="rimuoviFotoForm()">Rimuovi foto</button>
+      </div>
+      <input type="file" id="f-foto-file" accept="image/*" onchange="anteprimaFotoForm(event)">
+      <input type="hidden" id="f-foto_url">
+      <div class="foto-upload-status" id="foto-upload-status"></div>
+    </div>
+
+    <div class="form-section">Galleria foto</div>
+    <div class="field">
+      <div class="galleria-grid" id="galleria-esistente"></div>
+      <div class="galleria-grid" id="galleria-nuove-anteprima"></div>
+      <input type="file" id="f-galleria-file" accept="image/*" multiple onchange="anteprimaGalleriaForm(event)" style="margin-top:10px;">
+      <div class="foto-upload-status" id="galleria-upload-status"></div>
+    </div>
+
+    <div id="form-msg" class="form-msg"></div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://yikztqwjotqlzhzhvkco.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ijmcqTjqktnekLAyHn55wA_6OoZ-2uO";
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+  const MESI_LABEL = ['', 'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+  const MESE_CORRENTE = new Date().getMonth() + 1;
+
+  // Costruisce l'URL immagine da foto_url: gestisce sia i vecchi ID di Google Drive
+  // (importati dal gestionale precedente) sia i nuovi URL pubblici di Supabase Storage
+  function getFotoSrc(foto_url) {
+    if (!foto_url) return null;
+    if (foto_url.startsWith('http')) return foto_url;
+    return `https://lh3.googleusercontent.com/d/${foto_url}=w600`;
+  }
+
+  let tuttePiante = [];
+  let mappaAzioniPerPianta = {}; // id_pianta -> Set di tipo_intervento
+  let piantaCorrenteDettaglio = null;
+  let cureCorrentiDettaglio = [];
+  let galleriaCorrenteDettaglio = [];
+  let nuoviFileGalleria = [];
+  let tuttiTipiIntervento = [];
+  let curaRowCounter = 0;
+
+  // ---- Avvio: controlla se c'è già una sessione attiva ----
+  window.addEventListener('DOMContentLoaded', async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      mostraApp();
+    }
+  });
+
+  async function doLogin() {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    const msg = document.getElementById('login-msg');
+    const btn = document.getElementById('login-btn');
+
+    btn.disabled = true;
+    msg.style.display = 'none';
+
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+
+    btn.disabled = false;
+
+    if (error) {
+      msg.className = 'msg err';
+      msg.textContent = 'Accesso non riuscito: ' + error.message;
+      msg.style.display = 'block';
+      return;
+    }
+    mostraApp();
+  }
+
+  function mostraApp() {
+    document.getElementById('login-screen').classList.remove('active');
+    document.getElementById('app-screen').classList.add('active');
+    caricaPiante();
+  }
+
+  async function caricaPiante() {
+    const { data, error } = await sb
+      .from('piante')
+      .select('*')
+      .order('nome_comune');
+
+    if (error) {
+      alert('Errore nel caricamento piante: ' + error.message);
+      return;
+    }
+
+    tuttePiante = data;
+    await caricaMappaAzioni();
+    popolaFiltri(data);
+    renderLista(data);
+  }
+
+  async function caricaMappaAzioni() {
+    const { data: cure, error } = await sb
+      .from('piano_cure')
+      .select('id_pianta, tipo_intervento');
+
+    if (error) {
+      console.error('Errore caricamento azioni:', error.message);
+      return;
+    }
+
+    mappaAzioniPerPianta = {};
+    (cure || []).forEach(c => {
+      if (!mappaAzioniPerPianta[c.id_pianta]) mappaAzioniPerPianta[c.id_pianta] = new Set();
+      mappaAzioniPerPianta[c.id_pianta].add(c.tipo_intervento);
+    });
+  }
+
+  function popolaFiltri(piante) {
+    const categorie = [...new Set(piante.map(p => p.categoria).filter(Boolean))].sort();
+    const zone = [...new Set(piante.map(p => p.zona).filter(Boolean))].sort();
+
+    const selCat = document.getElementById('filter-categoria');
+    categorie.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      selCat.appendChild(opt);
+    });
+
+    const selZona = document.getElementById('filter-zona');
+    zone.forEach(z => {
+      const opt = document.createElement('option');
+      opt.value = z; opt.textContent = z;
+      selZona.appendChild(opt);
+    });
+
+    const azioni = [...new Set(Object.values(mappaAzioniPerPianta).flatMap(s => [...s]))].sort();
+    tuttiTipiIntervento = azioni;
+    const selTaskAzione = document.getElementById('filter-tasks-azione');
+    azioni.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a; opt.textContent = a;
+      selTaskAzione.appendChild(opt);
+    });
+    selTaskAzione.addEventListener('change', () => renderTaskMese(ultimeCureCaricate));
+  }
+
+  function applicaFiltri() {
+    const testo = document.getElementById('search-input').value.toLowerCase().trim();
+    const cat = document.getElementById('filter-categoria').value;
+    const zona = document.getElementById('filter-zona').value;
+    const foto = document.getElementById('filter-foto').value;
+
+    const filtrate = tuttePiante.filter(p => {
+      if (testo && !p.nome_comune.toLowerCase().includes(testo) &&
+          !(p.nome_scientifico || '').toLowerCase().includes(testo)) return false;
+      if (cat && p.categoria !== cat) return false;
+      if (zona && p.zona !== zona) return false;
+      if (foto === 'con' && !p.foto_url) return false;
+      if (foto === 'senza' && p.foto_url) return false;
+      return true;
+    });
+
+    renderLista(filtrate);
+  }
+
+  document.getElementById('search-input').addEventListener('input', applicaFiltri);
+  document.getElementById('filter-categoria').addEventListener('change', applicaFiltri);
+  document.getElementById('filter-zona').addEventListener('change', applicaFiltri);
+  document.getElementById('filter-foto').addEventListener('change', applicaFiltri);
+
+  function renderLista(piante) {
+    const grid = document.getElementById('plant-grid');
+    const empty = document.getElementById('empty-state');
+    document.getElementById('plant-count').textContent = `${piante.length} piante`;
+
+    if (piante.length === 0) {
+      grid.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    grid.innerHTML = piante.map(p => {
+      const fotoSrc = getFotoSrc(p.foto_url);
+      return `
+      <div class="plant-card" onclick="apriDettaglio(${p.id})">
+        ${fotoSrc ? `<img class="card-thumb" src="${fotoSrc}" loading="lazy" onerror="this.style.display='none'">` : ''}
+        <div class="name">${escapeHtml(p.nome_comune)}</div>
+        <div class="sci">${escapeHtml(p.nome_scientifico || '')}</div>
+        <div class="meta">
+          ${p.categoria ? `<span class="badge">${escapeHtml(p.categoria)}</span>` : ''}
+          ${p.zona ? `<span class="badge">${escapeHtml(p.zona)}</span>` : ''}
+          <span class="badge stato-viva">${escapeHtml(p.stato)}</span>
+        </div>
+      </div>
+    `;
+    }).join('');
+  }
+
+  async function apriDettaglio(id) {
+    const pianta = tuttePiante.find(p => p.id === id);
+    if (!pianta) return;
+    piantaCorrenteDettaglio = pianta;
+
+    const { data: cure, error } = await sb
+      .from('piano_cure')
+      .select('*')
+      .eq('id_pianta', id);
+
+    if (error) {
+      alert('Errore nel caricamento piano cure: ' + error.message);
+      return;
+    }
+
+    const { data: galleria, error: errGalleria } = await sb
+      .from('foto_galleria')
+      .select('*')
+      .eq('id_pianta', id)
+      .order('created_at');
+
+    if (errGalleria) {
+      console.error('Errore caricamento galleria:', errGalleria.message);
+    }
+    galleriaCorrenteDettaglio = galleria || [];
+
+    renderDettaglio(pianta, cure || []);
+    cureCorrentiDettaglio = cure || [];
+    document.getElementById('detail-screen').classList.add('active');
+  }
+
+  function closeDetail() {
+    document.getElementById('detail-screen').classList.remove('active');
+    document.getElementById('search-input').value = '';
+    applicaFiltri();
+  }
+
+  function renderDettaglio(p, cure) {
+    const body = document.getElementById('detail-body');
+
+    const infoRows = [
+      ['Categoria', p.categoria],
+      ['Coltivazione', p.tipo_coltivazione],
+      ['Zona', p.zona],
+      ['Stato', p.stato],
+    ].filter(([, v]) => v);
+
+    const infoHtml = infoRows.map(([k, v]) => `
+      <div class="info-row"><span class="k">${k}</span><span class="v">${escapeHtml(String(v))}</span></div>
+    `).join('');
+
+    const curaHtml = cure.map(c => {
+      const mesiChips = c.mesi.map(m => `
+        <span class="mese-chip ${m === MESE_CORRENTE ? 'now' : ''}">${MESI_LABEL[m]}</span>
+      `).join('');
+      return `
+        <div class="cura-card">
+          <div class="tipo">${escapeHtml(c.tipo_intervento)}</div>
+          <div class="mesi-chips">${mesiChips}</div>
+          ${c.note ? `<div class="cura-note">${escapeHtml(c.note)}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    body.innerHTML = `
+      ${getFotoSrc(p.foto_url) ? `<img class="detail-photo" src="${getFotoSrc(p.foto_url)}" onerror="this.style.display='none'">` : ''}
+      <h2 class="detail-name">${escapeHtml(p.nome_comune)}</h2>
+      <div class="detail-sci">${escapeHtml(p.nome_scientifico || '')}</div>
+
+      ${infoHtml ? `<div class="info-grid">${infoHtml}</div>` : ''}
+
+      ${p.note_svernamento ? `
+        <div class="note-block">
+          <div class="label">Svernamento</div>
+          ${escapeHtml(p.note_svernamento)}
+        </div>` : ''}
+
+      ${p.note ? `
+        <div class="note-block">
+          <div class="label">Note</div>
+          ${escapeHtml(p.note)}
+        </div>` : ''}
+
+      ${cure.length ? `<div class="section-title">Piano di cure</div>${curaHtml}` : ''}
+
+      ${galleriaCorrenteDettaglio.length ? `
+        <div class="section-title">Galleria foto</div>
+        <div class="galleria-grid">
+          ${galleriaCorrenteDettaglio.map(g => `
+            <div class="galleria-item">
+              <img src="${g.foto_url}" loading="lazy" onclick="window.open('${g.foto_url}', '_blank')">
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    `;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ---- Form nuova/modifica pianta ----
+  let piantaInModifica = null; // null = nuova pianta, altrimenti oggetto pianta esistente
+
+  function apriForm() {
+    piantaInModifica = null;
+    document.getElementById('form-title').textContent = 'Nuova pianta';
+    resettaForm();
+    popolaDatalistForm();
+    document.getElementById('cure-form-container').innerHTML = '';
+    aggiungiCuraRow();
+    galleriaCorrenteDettaglio = [];
+    renderGalleriaEsistente();
+    document.getElementById('form-screen').classList.add('active');
+  }
+
+  function apriFormModifica() {
+    if (!piantaCorrenteDettaglio) return;
+    piantaInModifica = piantaCorrenteDettaglio;
+    document.getElementById('form-title').textContent = 'Modifica pianta';
+    resettaForm();
+    popolaDatalistForm();
+    riempiForm(piantaInModifica);
+
+    document.getElementById('cure-form-container').innerHTML = '';
+    if (cureCorrentiDettaglio.length === 0) {
+      aggiungiCuraRow();
+    } else {
+      cureCorrentiDettaglio.forEach(c => aggiungiCuraRow(c));
+    }
+
+    renderGalleriaEsistente();
+    document.getElementById('form-screen').classList.add('active');
+  }
+
+  function chiudiForm() {
+    document.getElementById('form-screen').classList.remove('active');
+  }
+
+  let fileFotoSelezionato = null;
+
+  function resettaForm() {
+    ['nome_comune','nome_scientifico','categoria','tipo_coltivazione','zona',
+     'note_svernamento','note'].forEach(id => {
+      document.getElementById('f-' + id).value = '';
+    });
+    document.getElementById('f-stato').value = 'Viva';
+    document.getElementById('f-foto_url').value = '';
+    document.getElementById('f-foto-file').value = '';
+    document.getElementById('foto-preview-wrap').style.display = 'none';
+    document.getElementById('foto-upload-status').textContent = '';
+    document.getElementById('f-galleria-file').value = '';
+    document.getElementById('galleria-nuove-anteprima').innerHTML = '';
+    document.getElementById('galleria-upload-status').textContent = '';
+    fileFotoSelezionato = null;
+    nuoviFileGalleria = [];
+    document.getElementById('form-msg').className = 'form-msg';
+    document.getElementById('form-msg').textContent = '';
+  }
+
+  function riempiForm(p) {
+    document.getElementById('f-nome_comune').value = p.nome_comune || '';
+    document.getElementById('f-nome_scientifico').value = p.nome_scientifico || '';
+    document.getElementById('f-categoria').value = p.categoria || '';
+    document.getElementById('f-tipo_coltivazione').value = p.tipo_coltivazione || '';
+    document.getElementById('f-zona').value = p.zona || '';
+    document.getElementById('f-stato').value = p.stato || 'Viva';
+    document.getElementById('f-note_svernamento').value = p.note_svernamento || '';
+    document.getElementById('f-note').value = p.note || '';
+    document.getElementById('f-foto_url').value = p.foto_url || '';
+
+    const fotoSrc = getFotoSrc(p.foto_url);
+    if (fotoSrc) {
+      document.getElementById('foto-preview').src = fotoSrc;
+      document.getElementById('foto-preview-wrap').style.display = 'block';
+    }
+  }
+
+  function anteprimaFotoForm(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    fileFotoSelezionato = file;
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('foto-preview').src = e.target.result;
+      document.getElementById('foto-preview-wrap').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function rimuoviFotoForm() {
+    fileFotoSelezionato = null;
+    document.getElementById('f-foto_url').value = '';
+    document.getElementById('f-foto-file').value = '';
+    document.getElementById('foto-preview-wrap').style.display = 'none';
+  }
+
+  // ---- Galleria foto nel form ----
+  function renderGalleriaEsistente() {
+    const el = document.getElementById('galleria-esistente');
+    if (galleriaCorrenteDettaglio.length === 0) {
+      el.innerHTML = '';
+      return;
+    }
+    el.innerHTML = galleriaCorrenteDettaglio.map(g => `
+      <div class="galleria-item">
+        <img src="${g.foto_url}">
+        <div class="remove-x" onclick="eliminaFotoGalleria(${g.id})">✕</div>
+      </div>
+    `).join('');
+  }
+
+  async function eliminaFotoGalleria(idFoto) {
+    const conferma = confirm('Rimuovere questa foto dalla galleria?');
+    if (!conferma) return;
+
+    const { error } = await sb.from('foto_galleria').delete().eq('id', idFoto);
+    if (error) {
+      alert('Errore nella rimozione: ' + error.message);
+      return;
+    }
+
+    galleriaCorrenteDettaglio = galleriaCorrenteDettaglio.filter(g => g.id !== idFoto);
+    renderGalleriaEsistente();
+  }
+
+  function anteprimaGalleriaForm(event) {
+    const files = [...event.target.files];
+    nuoviFileGalleria = nuoviFileGalleria.concat(files);
+    renderGalleriaNuoveAnteprima();
+  }
+
+  function renderGalleriaNuoveAnteprima() {
+    const el = document.getElementById('galleria-nuove-anteprima');
+    el.innerHTML = '';
+    nuoviFileGalleria.forEach((file, idx) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        el.insertAdjacentHTML('beforeend', `
+          <div class="galleria-item">
+            <img src="${e.target.result}">
+            <div class="remove-x" onclick="rimuoviNuovaFotoGalleria(${idx})">✕</div>
+          </div>
+        `);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function rimuoviNuovaFotoGalleria(idx) {
+    nuoviFileGalleria.splice(idx, 1);
+    renderGalleriaNuoveAnteprima();
+  }
+
+  // ---- Registrazione service worker (installabilità + funzionamento offline base) ----
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch((err) => {
+        console.error('Registrazione service worker fallita:', err);
+      });
+    });
+  }
+
+  // ---- Righe azione di cura dinamiche nel form ----
+  function aggiungiCuraRow(datiEsistenti) {
+    curaRowCounter++;
+    const rowId = 'cura-row-' + curaRowCounter;
+    const tipoVal = datiEsistenti ? escapeHtml(datiEsistenti.tipo_intervento) : '';
+    const noteVal = datiEsistenti ? escapeHtml(datiEsistenti.note || '') : '';
+    const mesiSelezionati = datiEsistenti ? datiEsistenti.mesi : [];
+
+    const chips = MESI_LABEL.slice(1).map((label, idx) => {
+      const numeroMese = idx + 1;
+      const selected = mesiSelezionati.includes(numeroMese) ? 'selected' : '';
+      return `<button type="button" class="mese-toggle ${selected}" data-mese="${numeroMese}" onclick="this.classList.toggle('selected')">${label}</button>`;
+    }).join('');
+
+    const html = `
+      <div class="cura-row" id="${rowId}">
+        <div class="cura-row-top">
+          <div class="field">
+            <label>Tipo di intervento</label>
+            <input type="text" class="cura-tipo" list="list-tipo-intervento" value="${tipoVal}">
+          </div>
+          <button type="button" class="remove-cura-btn" onclick="document.getElementById('${rowId}').remove()">Rimuovi</button>
+        </div>
+        <div class="mesi-select-row">${chips}</div>
+        <textarea class="cura-note" placeholder="Note per questa azione...">${noteVal}</textarea>
+      </div>
+    `;
+    document.getElementById('cure-form-container').insertAdjacentHTML('beforeend', html);
+  }
+
+  function raccogliCureDalForm() {
+    const righe = document.querySelectorAll('#cure-form-container .cura-row');
+    const risultato = [];
+    righe.forEach(riga => {
+      const tipo = riga.querySelector('.cura-tipo').value.trim();
+      if (!tipo) return; // salta righe senza tipo di intervento specificato
+      const mesi = [...riga.querySelectorAll('.mese-toggle.selected')].map(btn => parseInt(btn.dataset.mese));
+      const note = riga.querySelector('.cura-note').value.trim();
+      risultato.push({ tipo_intervento: tipo, mesi, note: note || null });
+    });
+    return risultato;
+  }
+
+  function popolaDatalistForm() {
+    const riempi = (id, valori) => {
+      const el = document.getElementById(id);
+      el.innerHTML = '';
+      [...new Set(valori.filter(Boolean))].sort().forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v;
+        el.appendChild(opt);
+      });
+    };
+    riempi('list-categoria', tuttePiante.map(p => p.categoria));
+    riempi('list-coltivazione', tuttePiante.map(p => p.tipo_coltivazione));
+    riempi('list-zona', tuttePiante.map(p => p.zona));
+    riempi('list-tipo-intervento', tuttiTipiIntervento);
+  }
+
+  async function salvaPianta() {
+    const nome = document.getElementById('f-nome_comune').value.trim();
+    const msg = document.getElementById('form-msg');
+    const btn = document.getElementById('save-btn');
+
+    if (!nome) {
+      msg.className = 'form-msg err';
+      msg.textContent = 'Il nome comune è obbligatorio.';
+      return;
+    }
+
+    const payload = {
+      nome_comune: nome,
+      nome_scientifico: valOrNull('f-nome_scientifico'),
+      categoria: valOrNull('f-categoria'),
+      tipo_coltivazione: valOrNull('f-tipo_coltivazione'),
+      zona: valOrNull('f-zona'),
+      stato: valOrNull('f-stato') || 'Viva',
+      note_svernamento: valOrNull('f-note_svernamento'),
+      note: valOrNull('f-note'),
+      foto_url: valOrNull('f-foto_url'),
+    };
+
+    btn.disabled = true;
+    msg.className = 'form-msg';
+
+    let error, idPianta;
+
+    if (piantaInModifica) {
+      idPianta = piantaInModifica.id;
+      payload.numero_riferimento = idPianta; // tenuto sempre sincronizzato con l'id
+      ({ error } = await sb.from('piante').update(payload).eq('id', idPianta));
+    } else {
+      const result = await sb.from('piante').insert(payload).select().single();
+      error = result.error;
+      idPianta = result.data ? result.data.id : null;
+
+      // Ora che conosciamo l'id assegnato, sincronizziamo numero_riferimento
+      if (!error && idPianta) {
+        await sb.from('piante').update({ numero_riferimento: idPianta }).eq('id', idPianta);
+      }
+    }
+
+    if (error) {
+      btn.disabled = false;
+      msg.className = 'form-msg err';
+      msg.textContent = 'Errore nel salvataggio della pianta: ' + error.message;
+      return;
+    }
+
+    // Sostituisce l'intero set di azioni di cura con quelle attualmente nel form
+    const nuoveCure = raccogliCureDalForm();
+
+    const { error: delError } = await sb.from('piano_cure').delete().eq('id_pianta', idPianta);
+    if (delError) {
+      btn.disabled = false;
+      msg.className = 'form-msg err';
+      msg.textContent = 'Pianta salvata, ma errore nell\'aggiornamento delle azioni di cura: ' + delError.message;
+      return;
+    }
+
+    if (nuoveCure.length > 0) {
+      const righeInsert = nuoveCure.map(c => ({ ...c, id_pianta: idPianta }));
+      const { error: insError } = await sb.from('piano_cure').insert(righeInsert);
+      if (insError) {
+        btn.disabled = false;
+        msg.className = 'form-msg err';
+        msg.textContent = 'Pianta salvata, ma errore nel salvataggio delle azioni di cura: ' + insError.message;
+        return;
+      }
+    }
+
+    // Se è stata selezionata una nuova foto, la carichiamo ora che conosciamo l'id della pianta
+    if (fileFotoSelezionato) {
+      const statusEl = document.getElementById('foto-upload-status');
+      statusEl.textContent = 'Caricamento foto in corso...';
+
+      const estensione = fileFotoSelezionato.name.split('.').pop();
+      const percorso = `pianta-${idPianta}-${Date.now()}.${estensione}`;
+
+      const { error: upError } = await sb.storage
+        .from('foto-piante')
+        .upload(percorso, fileFotoSelezionato);
+
+      if (upError) {
+        statusEl.textContent = '';
+        btn.disabled = false;
+        msg.className = 'form-msg err';
+        msg.textContent = 'Pianta salvata, ma errore nel caricamento della foto: ' + upError.message;
+        return;
+      }
+
+      const { data: pub } = sb.storage.from('foto-piante').getPublicUrl(percorso);
+      await sb.from('piante').update({ foto_url: pub.publicUrl }).eq('id', idPianta);
+      statusEl.textContent = '';
+    }
+
+    // Carica le eventuali nuove foto della galleria
+    if (nuoviFileGalleria.length > 0) {
+      const statusGal = document.getElementById('galleria-upload-status');
+      for (let i = 0; i < nuoviFileGalleria.length; i++) {
+        const file = nuoviFileGalleria[i];
+        statusGal.textContent = `Caricamento foto ${i + 1} di ${nuoviFileGalleria.length}...`;
+
+        const estensione = file.name.split('.').pop();
+        const percorso = `galleria-${idPianta}-${Date.now()}-${i}.${estensione}`;
+
+        const { error: upErrGal } = await sb.storage.from('foto-piante').upload(percorso, file);
+        if (upErrGal) {
+          statusGal.textContent = '';
+          msg.className = 'form-msg err';
+          msg.textContent = `Pianta salvata, ma errore nel caricamento della foto galleria "${file.name}": ${upErrGal.message}`;
+          btn.disabled = false;
+          return;
+        }
+
+        const { data: pubGal } = sb.storage.from('foto-piante').getPublicUrl(percorso);
+        await sb.from('foto_galleria').insert({ id_pianta: idPianta, foto_url: pubGal.publicUrl });
+      }
+      statusGal.textContent = '';
+      nuoviFileGalleria = [];
+    }
+
+    btn.disabled = false;
+    msg.className = 'form-msg ok';
+    msg.textContent = '✓ Salvato correttamente.';
+
+    await caricaPiante();
+
+    setTimeout(() => {
+      chiudiForm();
+      if (piantaInModifica) closeDetail();
+    }, 500);
+  }
+
+  function valOrNull(id) {
+    const v = document.getElementById(id).value.trim();
+    return v === '' ? null : v;
+  }
+
+  async function eliminaPiantaCorrente() {
+    if (!piantaCorrenteDettaglio) return;
+
+    const conferma = confirm(
+      `Eliminare definitivamente "${piantaCorrenteDettaglio.nome_comune}"?\n\nVerrà cancellato anche il suo piano di cure. Questa azione non è reversibile.`
+    );
+    if (!conferma) return;
+
+    const { error } = await sb.from('piante').delete().eq('id', piantaCorrenteDettaglio.id);
+
+    if (error) {
+      alert('Errore nell\'eliminazione: ' + error.message);
+      return;
+    }
+
+    closeDetail();
+    await caricaPiante();
+  }
+
+
+  function switchTab(tab) {
+    document.getElementById('tab-plants').classList.toggle('active', tab === 'plants');
+    document.getElementById('tab-tasks').classList.toggle('active', tab === 'tasks');
+    document.getElementById('plants-view').classList.toggle('active', tab === 'plants');
+    document.getElementById('tasks-view').classList.toggle('active', tab === 'tasks');
+    if (tab === 'tasks') caricaTaskMese();
+  }
+
+  // ---- Vista mensile "Da fare" ----
+  let meseSelezionato = MESE_CORRENTE;
+  let ultimeCureCaricate = [];
+
+  function cambiaMese(delta) {
+    meseSelezionato += delta;
+    if (meseSelezionato > 12) meseSelezionato = 1;
+    if (meseSelezionato < 1) meseSelezionato = 12;
+    caricaTaskMese();
+  }
+
+  async function caricaTaskMese() {
+    document.getElementById('month-label').innerHTML =
+      MESI_LABEL[meseSelezionato] + (meseSelezionato === MESE_CORRENTE ? ' <span class="current-tag"></span>' : '');
+
+    const { data: cure, error } = await sb
+      .from('piano_cure')
+      .select('*')
+      .contains('mesi', [meseSelezionato]);
+
+    if (error) {
+      alert('Errore nel caricamento del piano mensile: ' + error.message);
+      return;
+    }
+
+    ultimeCureCaricate = cure || [];
+    renderTaskMese(ultimeCureCaricate);
+  }
+
+  function renderTaskMese(cureComplete) {
+    const azioneScelta = document.getElementById('filter-tasks-azione').value;
+    const cure = azioneScelta ? cureComplete.filter(c => c.tipo_intervento === azioneScelta) : cureComplete;
+
+    const listEl = document.getElementById('tasks-list');
+    const emptyEl = document.getElementById('tasks-empty');
+
+    if (cure.length === 0) {
+      listEl.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    // Raggruppa per tipo_intervento
+    const gruppi = {};
+    cure.forEach(c => {
+      if (!gruppi[c.tipo_intervento]) gruppi[c.tipo_intervento] = [];
+      gruppi[c.tipo_intervento].push(c);
+    });
+
+    const tipiOrdinati = Object.keys(gruppi).sort();
+
+    listEl.innerHTML = tipiOrdinati.map(tipo => {
+      const items = gruppi[tipo].map(c => {
+        const pianta = tuttePiante.find(p => p.id === c.id_pianta);
+        const nomePianta = pianta ? pianta.nome_comune : `Pianta #${c.id_pianta}`;
+        return `
+          <div class="task-item" onclick="apriDettaglio(${c.id_pianta})">
+            <div>
+              <div class="plant-name">${escapeHtml(nomePianta)}</div>
+              ${c.note ? `<div class="task-note">${escapeHtml(c.note)}</div>` : ''}
+            </div>
+            <span class="chevron">→</span>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="task-group">
+          <div class="task-group-title">${escapeHtml(tipo)} <span class="n">${gruppi[tipo].length}</span></div>
+          ${items}
+        </div>
+      `;
+    }).join('');
+  }
+</script>
+
+</body>
+</html>
