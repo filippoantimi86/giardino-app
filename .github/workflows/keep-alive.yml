@@ -1,0 +1,16 @@
+name: Mantieni attivo Supabase
+
+on:
+  schedule:
+    - cron: '0 6 * * 1,4'   # ogni lunedì e giovedì alle 6:00 UTC
+  workflow_dispatch:         # permette anche l'avvio manuale dal tab Actions
+
+jobs:
+  ping-database:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Richiesta di lettura leggera a Supabase
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" \
+            "https://yikztqwjotqlzhzhvkco.supabase.co/rest/v1/piante?select=id&limit=1" \
+            -H "apikey: sb_publishable_ijmcqTjqktnekLAyHn55wA_6OoZ-2uO"
